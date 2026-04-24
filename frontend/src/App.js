@@ -5,6 +5,15 @@ import "./App.css";
 function App() {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
+
+  const CartIcon = () => (
+    <svg className="cart-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M7 4H3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M3 4L5 13H19L21 6H8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M16 19C16.5523 19 17 18.5523 17 18C17 17.4477 16.5523 17 16 17C15.4477 17 15 17.4477 15 18C15 18.5523 15.4477 19 16 19Z" fill="currentColor" />
+      <path d="M8 19C8.55228 19 9 18.5523 9 18C9 17.4477 8.55228 17 8 17C7.44772 17 7 17.4477 7 18C7 18.5523 7.44772 19 8 19Z" fill="currentColor" />
+    </svg>
+  );
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [location, setLocation] = useState("Delhi");
@@ -12,16 +21,54 @@ function App() {
   const [newProduct, setNewProduct] = useState({ name: "", price: "", category: "", image: "" });
   const [address, setAddress] = useState({ name: "", phone: "", line: "", city: "Delhi", pincode: "" });
 
+  const cartQuantity = cart.reduce((sum, item) => sum + item.qty, 0);
+  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+
+  const getCartKey = (item) => item._id || item.name;
+  const updateCart = (updater) => {
+    setCart((prev) => {
+      const next = updater(prev);
+      localStorage.setItem("cart", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const addToCart = (product) => {
+    updateCart((prev) => {
+      const key = getCartKey(product);
+      const exists = prev.find((item) => getCartKey(item) === key);
+      if (exists) {
+        return prev.map((item) =>
+          getCartKey(item) === key ? { ...item, qty: item.qty + 1 } : item
+        );
+      }
+      return [...prev, { ...product, qty: 1 }];
+    });
+  };
+
+  const decreaseFromCart = (product) => {
+    updateCart((prev) => {
+      const key = getCartKey(product);
+      return prev.flatMap((item) => {
+        if (getCartKey(item) !== key) return item;
+        if (item.qty > 1) return { ...item, qty: item.qty - 1 };
+        return [];
+      });
+    });
+  };
+
+  const removeFromCart = (product) => {
+    updateCart((prev) => prev.filter((item) => getCartKey(item) !== getCartKey(product)));
+  };
+
   const [user, setUser] = useState(null);
   const [mobileInput, setMobileInput] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpError, setOtpError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Commenting out login: set user to dummy to bypass auth
-    setUser({ mobile: "dummy", token: "dummy" });
-
     const token = localStorage.getItem("authToken");
     if (token) {
       axios.get("http://localhost:5001/api/auth/profile", {
@@ -35,6 +82,15 @@ function App() {
       });
     }
 
+    const storedCart = localStorage.getItem("cart");
+    if (storedCart) {
+      try {
+        setCart(JSON.parse(storedCart));
+      } catch (e) {
+        console.error("Failed to parse stored cart", e);
+      }
+    }
+
     axios.get("http://localhost:5001/api/products")
       .then(res => setProducts(res.data))
       .catch(err => console.log(err));
@@ -43,14 +99,6 @@ function App() {
       .then(res => setOrders(res.data))
       .catch(err => console.log(err));
   }, []);
-
-  const addToCart = (product) => {
-    setCart([...cart, product]);
-  };
-
-  const removeFromCart = (index) => {
-    setCart(cart.filter((_, i) => i !== index));
-  };
 
   const saveProduct = async () => {
     if (!newProduct.name || !newProduct.price) {
@@ -73,7 +121,7 @@ function App() {
   };
 
   const goToAddress = () => {
-    if (cart.length === 0) {
+    if (cartQuantity === 0) {
       alert("Please add at least one item to cart first.");
       return;
     }
@@ -124,17 +172,26 @@ function App() {
       setOtpError("Enter a valid 10-digit Indian mobile number.");
       return;
     }
+    setIsLoading(true);
+    setOtpError("");
     try {
       const response = await axios.post("http://localhost:5001/api/auth/send-otp", { mobile: mobileInput });
       setOtpSent(true);
       setOtpError("");
-      alert(`OTP sent (a mock) - use code: ${response.data.otp}`);
+      alert(`OTP sent! Use code: ${response.data.otp}`);
     } catch (error) {
       setOtpError(error.response?.data?.message || "Failed to send OTP");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const verifyOtp = async () => {
+    if (!otp) {
+      setOtpError("Please enter the OTP");
+      return;
+    }
+    setIsLoading(true);
     try {
       const response = await axios.post("http://localhost:5001/api/auth/verify-otp", { mobile: mobileInput, otp });
       const { token, mobile } = response.data;
@@ -148,6 +205,8 @@ function App() {
       setPage("home");
     } catch (error) {
       setOtpError(error.response?.data?.message || "OTP verification failed");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -165,55 +224,135 @@ function App() {
 
   const categories = ["All", ...new Set(products.map(p => p.category))];
 
-  {/* Commented out login with phone code
+  // Login UI
   if (!user) {
     return (
       <div className="auth-page">
-        <h2>Login with Mobile OTP</h2>
-        <input
-          type="text"
-          placeholder="Enter mobile number"
-          value={mobileInput}
-          onChange={(e) => setMobileInput(e.target.value)}
-        />
-        <button onClick={sendOtp}>Send OTP</button>
-        {otpSent && (
-          <>
-            <input
-              type="text"
-              placeholder="Enter OTP"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-            />
-            <button onClick={verifyOtp}>Verify OTP</button>
-          </>
-        )}
-        {otpError && <p className="otp-error">{otpError}</p>}
+        <div className="auth-container">
+          <div className="auth-header">
+            <div className="logo">🛒 Quickway</div>
+            <h2>Welcome Back</h2>
+            <p>Sign in to continue shopping</p>
+          </div>
+
+          <div className="auth-form">
+            <div className="input-group">
+              <label>Mobile Number</label>
+              <div className="phone-input">
+                <span className="country-code">+91</span>
+                <input
+                  type="tel"
+                  placeholder="Enter 10-digit mobile number"
+                  value={mobileInput}
+                  onChange={(e) => setMobileInput(e.target.value)}
+                  maxLength="10"
+                  disabled={otpSent}
+                />
+              </div>
+            </div>
+
+            {!otpSent ? (
+              <button
+                className="auth-btn primary"
+                onClick={sendOtp}
+                disabled={isLoading || !mobileInput}
+              >
+                {isLoading ? "Sending..." : "Send OTP"}
+              </button>
+            ) : (
+              <>
+                <div className="input-group">
+                  <label>Enter OTP</label>
+                  <input
+                    type="text"
+                    placeholder="Enter 4-digit OTP"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    maxLength="4"
+                  />
+                </div>
+
+                <button
+                  className="auth-btn primary"
+                  onClick={verifyOtp}
+                  disabled={isLoading || !otp}
+                >
+                  {isLoading ? "Verifying..." : "Verify OTP"}
+                </button>
+
+                <button
+                  className="auth-btn secondary"
+                  onClick={() => {
+                    setOtpSent(false);
+                    setOtp("");
+                    setOtpError("");
+                  }}
+                  disabled={isLoading}
+                >
+                  Change Number
+                </button>
+              </>
+            )}
+
+            {otpError && <p className="error-message">{otpError}</p>}
+          </div>
+
+          <div className="auth-footer">
+            <p>By continuing, you agree to our Terms & Privacy Policy</p>
+          </div>
+        </div>
       </div>
     );
   }
-  */}
 
   return (
     <div className="app">
-      <header className="header">
-        <div className="location">
-          📍 {location}
-          <button className="location-btn" onClick={() => setLocation("Delhi")}>Change to Delhi</button>
+      <header className="modern-header">
+        <div className="header-container">
+          <div className="header-brand">
+            <div className="logo">🛒 Quickway</div>
+          </div>
+          
+          <div className="header-search">
+            <div className="search-wrapper">
+              <input
+                type="text"
+                placeholder="Search products, brands..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="search-input"
+              />
+              <button className="search-btn">🔍</button>
+            </div>
+          </div>
+
+          <div className="header-actions">
+            <div className="location-selector">
+              <button className="action-btn location-btn">
+                <span>📍</span>
+                <span className="location-text">{location}</span>
+              </button>
+            </div>
+
+            <div className="user-account">
+              <button className="action-btn user-btn">
+                <span>👤</span>
+                <span className="account-text">{user && user.mobile ? `+91 ${user.mobile.slice(-4)}` : "Sign In"}</span>
+              </button>
+              {user && (
+                <button className="action-btn logout-btn" onClick={logout}>
+                  <span>🚪</span>
+                  <span className="logout-text">Logout</span>
+                </button>
+              )}
+            </div>
+
+                <button className="action-btn cart-btn" onClick={goToAddress}>
+              <CartIcon />
+              {cartQuantity > 0 && <span className="cart-badge">{cartQuantity}</span>}
+            </button>
+          </div>
         </div>
-        <div className="search-bar">
-          <input
-            type="text"
-            placeholder="Search for products..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="user-block">
-          <span>{user ? `Hi, +91 ${user.mobile}` : "Guest"}</span>
-          {/* <button onClick={logout}>Logout</button> */}
-        </div>
-        <div className="cart-icon" onClick={goToAddress} style={{ cursor: "pointer" }}>🛒 ({cart.length})</div>
       </header>
 
       <div className="navigation">
@@ -254,9 +393,23 @@ function App() {
         <div className="address-page">
           <h2>Delivery Address</h2>
           <div className="cart-preview">
-            {cart.length === 0 ? <p>Cart is empty</p> : cart.map((item, idx) => (
-              <div key={idx}>{item.name} - ₹{item.price} <button onClick={() => removeFromCart(idx)}>Remove</button></div>
-            ))}
+            {cartQuantity === 0 ? (
+              <p>Cart is empty</p>
+            ) : (
+              cart.map((item) => (
+                <div key={getCartKey(item)} className="cart-item-row">
+                  <div>
+                    {item.name} x{item.qty} - ₹{item.price * item.qty}
+                  </div>
+                  <div className="qty-controls">
+                    <button onClick={() => decreaseFromCart(item)}>-</button>
+                    <span>{item.qty}</span>
+                    <button onClick={() => addToCart(item)}>+</button>
+                    <button className="remove-btn" onClick={() => removeFromCart(item)}>Remove</button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
           <input
             placeholder="Name"
@@ -286,7 +439,7 @@ function App() {
         <div className="payment-page">
           <h2>Payment</h2>
           <p>Delivering to: {address.name}, {address.line}, {address.city} {address.pincode}</p>
-          <p>Total: ₹{cart.reduce((sum, p) => sum + p.price, 0)}</p>
+          <p>Total: ₹{cartTotal}</p>
           <button onClick={completeOrder}>Confirm Payment</button>
         </div>
       )}
@@ -296,7 +449,7 @@ function App() {
           <h2>Order History</h2>
           {orders.length === 0 ? <p>No orders yet.</p> : orders.map(o => (
             <div key={o._id} className="order-card">
-              <p><strong>Order #</strong> {o._id.slice(-6)} – {new Date(o.createdAt).toLocaleString()}</p>
+              <p><strong>Order #</strong> {o._id && typeof o._id === 'string' ? o._id.slice(-6) : 'N/A'} – {o.createdAt ? new Date(o.createdAt).toLocaleString() : 'N/A'}</p>
               <p><strong>Total</strong>: ₹{o.total}</p>
               <p><strong>Status</strong>: {o.status}</p>
               <div>
@@ -327,14 +480,25 @@ function App() {
             {filteredProducts.length === 0 ? (
               <p>No products found</p>
             ) : (
-              filteredProducts.map((p) => (
-                <div key={p._id || p.name} className="product-card">
-                  <img src={p.image || "https://via.placeholder.com/150"} alt={p.name} />
-                  <h3>{p.name}</h3>
-                  <p>₹{p.price}</p>
-                  <button onClick={() => addToCart(p)}>Add to Cart</button>
-                </div>
-              ))
+              filteredProducts.map((p) => {
+                const cartItem = cart.find((item) => getCartKey(item) === getCartKey(p));
+                return (
+                  <div key={getCartKey(p)} className="product-card">
+                    <img src={p.image || "https://via.placeholder.com/150"} alt={p.name} />
+                    <h3>{p.name}</h3>
+                    <p>₹{p.price}</p>
+                    {cartItem ? (
+                      <div className="product-qty-controls">
+                        <button onClick={() => decreaseFromCart(p)}>-</button>
+                        <span>{cartItem.qty}</span>
+                        <button onClick={() => addToCart(p)}>+</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => addToCart(p)}>Add to Cart</button>
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
         </>

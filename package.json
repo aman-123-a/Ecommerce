@@ -1,0 +1,29 @@
+{
+  "name": "zepto_full_project",
+  "version": "1.0.0",
+  "description": "cd backend npm install npm start",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aman-123-a/Ecommerce.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/aman-123-a/Ecommerce/issues"
+  },
+  "homepage": "https://github.com/aman-123-a/Ecommerce#readme",
+  "dependencies": {
+    "axios": "^1.15.2",
+    "body-parser": "^2.2.2",
+    "cors": "^2.8.6",
+    "express": "^5.2.1"
+  }
+}
