@@ -18,7 +18,7 @@ export default function Admin() {
       <button onClick={() => axios.post("/api/products", form)}>Add</button>
 
       {products.map(p => (
-        <div key={p._id}>{p.name}</div>
+        <div key={p.id}>{p.name}</div>
       ))}
     </div>
   );
