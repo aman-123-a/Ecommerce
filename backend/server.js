@@ -54,7 +54,7 @@ const User = mongoose.model("User", userSchema);
 const Product = mongoose.model("Product", productSchema);
 const Order = mongoose.model("Order", orderSchema);
 
-const otpStore = {};
+/*const otpStore = {};
 const sessions = {};
 
 const generateToken = () =>
@@ -143,7 +143,7 @@ app.post("/api/products", async (req, res) => {
   const { name, price, category, image, stock } = req.body;
   if (!name || price == null) {
     return res.status(400).json({ message: "Name and price are required" });
-  }
+  }*/
 
   try {
     const product = await Product.create({
