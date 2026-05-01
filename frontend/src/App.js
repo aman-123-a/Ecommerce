@@ -24,7 +24,7 @@ function App() {
   const cartQuantity = cart.reduce((sum, item) => sum + item.qty, 0);
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
 
-  const getCartKey = (item) => item._id || item.name;
+  const getCartKey = (item) => item.id || item.name;
   const updateCart = (updater) => {
     setCart((prev) => {
       const next = updater(prev);
@@ -71,7 +71,7 @@ function App() {
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (token) {
-      axios.get("http://localhost:5001/api/auth/profile", {
+      axios.get("/api/auth/profile", {
         headers: { Authorization: `Bearer ${token}` }
       })
       .then(res => setUser({ mobile: res.data.mobile, token }))
@@ -91,11 +91,11 @@ function App() {
       }
     }
 
-    axios.get("http://localhost:5001/api/products")
+    axios.get("/api/products")
       .then(res => setProducts(res.data))
       .catch(err => console.log(err));
 
-    axios.get("http://localhost:5001/api/orders")
+    axios.get("/api/orders")
       .then(res => setOrders(res.data))
       .catch(err => console.log(err));
   }, []);
@@ -107,7 +107,7 @@ function App() {
     }
 
     try {
-      const response = await axios.post("http://localhost:5001/api/products", {
+      const response = await axios.post("/api/products", {
         ...newProduct,
         price: Number(newProduct.price)
       });
@@ -140,14 +140,14 @@ function App() {
 
   const completeOrder = async () => {
     const grouped = cart.reduce((acc, item) => {
-      const key = item._id || item.name;
+      const key = item.id || item.name;
       if (!acc[key]) acc[key] = { ...item, qty: 0 };
       acc[key].qty += 1;
       return acc;
     }, {});
 
     const items = Object.values(grouped).map(i => ({
-      productId: i._id,
+      productId: i.id,
       name: i.name,
       price: i.price,
       qty: i.qty
@@ -156,7 +156,7 @@ function App() {
     const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
 
     try {
-      const res = await axios.post("http://localhost:5001/api/orders", { items, total, address });
+      const res = await axios.post("/api/orders", { items, total, address });
       setOrders([res.data, ...orders]);
       alert(`Order placed! Total amount ₹${total}`);
       setCart([]);
@@ -175,7 +175,7 @@ function App() {
     setIsLoading(true);
     setOtpError("");
     try {
-      const response = await axios.post("http://localhost:5001/api/auth/send-otp", { mobile: mobileInput });
+      const response = await axios.post("/api/auth/send-otp", { mobile: mobileInput });
       setOtpSent(true);
       setOtpError("");
       alert(`OTP sent! Use code: ${response.data.otp}`);
@@ -193,7 +193,7 @@ function App() {
     }
     setIsLoading(true);
     try {
-      const response = await axios.post("http://localhost:5001/api/auth/verify-otp", { mobile: mobileInput, otp });
+      const response = await axios.post("/api/auth/verify-otp", { mobile: mobileInput, otp });
       const { token, mobile } = response.data;
       setUser({ mobile, token });
       localStorage.setItem("authToken", token);
@@ -448,13 +448,13 @@ function App() {
         <div className="orders-page">
           <h2>Order History</h2>
           {orders.length === 0 ? <p>No orders yet.</p> : orders.map(o => (
-            <div key={o._id} className="order-card">
-              <p><strong>Order #</strong> {o._id && typeof o._id === 'string' ? o._id.slice(-6) : 'N/A'} – {o.createdAt ? new Date(o.createdAt).toLocaleString() : 'N/A'}</p>
+            <div key={o.id} className="order-card">
+              <p><strong>Order #</strong> {o.id || 'N/A'} – {o.createdAt ? new Date(o.createdAt).toLocaleString() : 'N/A'}</p>
               <p><strong>Total</strong>: ₹{o.total}</p>
               <p><strong>Status</strong>: {o.status}</p>
               <div>
                 {o.items.map(item => (
-                  <p key={`${o._id}-${item.productId}`}>{item.name} x{item.qty} = ₹{item.price * item.qty}</p>
+                  <p key={`${o.id}-${item.productId}`}>{item.name} x{item.qty} = ₹{item.price * item.qty}</p>
                 ))}
               </div>
             </div>
