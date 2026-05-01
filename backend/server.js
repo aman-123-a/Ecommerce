@@ -227,5 +227,11 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
+const serverless = require("serverless-http");
+
 const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => console.log(`Backend running on ${PORT}`));
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => console.log(`Backend running on ${PORT}`));
+}
+
+module.exports.handler = serverless(app, { basePath: '/.netlify/functions/server' });

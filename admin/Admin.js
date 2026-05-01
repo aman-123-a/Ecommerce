@@ -6,7 +6,7 @@ export default function Admin() {
   const [form, setForm] = useState({ name: "", price: "" });
 
   useEffect(() => {
-    axios.get("http://localhost:5000/api/products")
+    axios.get("/api/products")
       .then(res => setProducts(res.data));
   }, []);
 
@@ -15,7 +15,7 @@ export default function Admin() {
       <h1>Admin Panel</h1>
       <input placeholder="Name" onChange={e => setForm({...form, name:e.target.value})}/>
       <input placeholder="Price" onChange={e => setForm({...form, price:e.target.value})}/>
-      <button onClick={() => axios.post("http://localhost:5000/api/products", form)}>Add</button>
+      <button onClick={() => axios.post("/api/products", form)}>Add</button>
 
       {products.map(p => (
         <div key={p._id}>{p.name}</div>

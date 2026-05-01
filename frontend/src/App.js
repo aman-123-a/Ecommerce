@@ -71,7 +71,7 @@ function App() {
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (token) {
-      axios.get("http://localhost:5001/api/auth/profile", {
+      axios.get("/api/auth/profile", {
         headers: { Authorization: `Bearer ${token}` }
       })
       .then(res => setUser({ mobile: res.data.mobile, token }))
@@ -91,11 +91,11 @@ function App() {
       }
     }
 
-    axios.get("http://localhost:5001/api/products")
+    axios.get("/api/products")
       .then(res => setProducts(res.data))
       .catch(err => console.log(err));
 
-    axios.get("http://localhost:5001/api/orders")
+    axios.get("/api/orders")
       .then(res => setOrders(res.data))
       .catch(err => console.log(err));
   }, []);
@@ -107,7 +107,7 @@ function App() {
     }
 
     try {
-      const response = await axios.post("http://localhost:5001/api/products", {
+      const response = await axios.post("/api/products", {
         ...newProduct,
         price: Number(newProduct.price)
       });
@@ -156,7 +156,7 @@ function App() {
     const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
 
     try {
-      const res = await axios.post("http://localhost:5001/api/orders", { items, total, address });
+      const res = await axios.post("/api/orders", { items, total, address });
       setOrders([res.data, ...orders]);
       alert(`Order placed! Total amount ₹${total}`);
       setCart([]);
@@ -175,7 +175,7 @@ function App() {
     setIsLoading(true);
     setOtpError("");
     try {
-      const response = await axios.post("http://localhost:5001/api/auth/send-otp", { mobile: mobileInput });
+      const response = await axios.post("/api/auth/send-otp", { mobile: mobileInput });
       setOtpSent(true);
       setOtpError("");
       alert(`OTP sent! Use code: ${response.data.otp}`);
@@ -193,7 +193,7 @@ function App() {
     }
     setIsLoading(true);
     try {
-      const response = await axios.post("http://localhost:5001/api/auth/verify-otp", { mobile: mobileInput, otp });
+      const response = await axios.post("/api/auth/verify-otp", { mobile: mobileInput, otp });
       const { token, mobile } = response.data;
       setUser({ mobile, token });
       localStorage.setItem("authToken", token);
