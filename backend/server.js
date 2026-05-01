@@ -143,7 +143,7 @@ app.post("/api/products", async (req, res) => {
   const { name, price, category, image, stock } = req.body;
   if (!name || price == null) {
     return res.status(400).json({ message: "Name and price are required" });
-  }/*
+  }*/
 
   try {
     const product = await Product.create({
